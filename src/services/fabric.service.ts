@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { addDays, subDays, format } from "date-fns";
 import { WoodyError } from "@/types/errors";
+import { ENV } from "@/lib/env";
 import {
   FabricGraphqlResponseSchema,
   FabricCvClotureGraphqlResponseSchema,
@@ -26,14 +27,6 @@ const GRAPHQL_PAGE_SIZE = 1000;
 const DATE_RANGE_DAYS = 3;
 const TOKEN_EXPIRY_BUFFER_S = 120;
 
-// --- Fabric auth config (passed by callers from settings store) ---
-
-export interface FabricAuthConfig {
-  clientId: string;
-  tenantId: string;
-  clientSecret: string;
-}
-
 // --- Token cache ---
 
 let cachedToken: string | null = null;
@@ -41,12 +34,12 @@ let tokenExpiry: Date | null = null;
 
 // --- Auth via Client Credentials ---
 
-export async function authenticateFabric(
-  auth: FabricAuthConfig,
-): Promise<string> {
-  if (!auth.clientId || !auth.tenantId || !auth.clientSecret) {
+export async function authenticateFabric(): Promise<string> {
+  const { clientId, tenantId, clientSecret } = ENV.fabric;
+
+  if (!clientId || !tenantId || !clientSecret) {
     throw new WoodyError(
-      "Le Client ID, Tenant ID et Secret doivent etre configures dans les parametres",
+      "Le Client ID, Tenant ID et Secret doivent etre configures dans les variables d'environnement",
       "FABRIC_AUTH_NOT_CONFIGURED",
     );
   }
@@ -58,9 +51,9 @@ export async function authenticateFabric(
   try {
     const result = await withTimeout(
       invoke<{ status: number; body: string }>("fetch_entra_token", {
-        tenantId: auth.tenantId.trim(),
-        clientId: auth.clientId.trim(),
-        clientSecret: auth.clientSecret.trim(),
+        tenantId: tenantId.trim(),
+        clientId: clientId.trim(),
+        clientSecret: clientSecret.trim(),
         scope: FABRIC_API_SCOPE,
       }),
       TOKEN_ENDPOINT_TIMEOUT_MS,
@@ -163,10 +156,10 @@ async function executeGraphqlQuery(
 // --- Public API ---
 
 export async function syncFabricData(
-  graphqlEndpoint: string,
-  auth: FabricAuthConfig,
   onProgress?: (page: number, rowsSoFar: number) => void,
 ): Promise<{ totalRows: number; pagesProcessed: number }> {
+  const { graphqlEndpoint } = ENV.fabric;
+
   if (!graphqlEndpoint) {
     throw new WoodyError(
       "L'endpoint GraphQL Fabric doit etre configure",
@@ -174,7 +167,7 @@ export async function syncFabricData(
     );
   }
 
-  const token = await authenticateFabric(auth);
+  const token = await authenticateFabric();
 
   // Clear existing data before sync
   await clearFabricCvEncours();
@@ -229,10 +222,9 @@ export async function syncFabricData(
   return { totalRows, pagesProcessed: page };
 }
 
-export async function testConnection(
-  graphqlEndpoint: string,
-  auth: FabricAuthConfig,
-): Promise<boolean> {
+export async function testConnection(): Promise<boolean> {
+  const { graphqlEndpoint } = ENV.fabric;
+
   if (!graphqlEndpoint) {
     throw new WoodyError(
       "L'endpoint GraphQL Fabric doit etre configure",
@@ -240,7 +232,7 @@ export async function testConnection(
     );
   }
 
-  const token = await authenticateFabric(auth);
+  const token = await authenticateFabric();
 
   // Simple introspection query to test connection
   const graphqlQuery = JSON.stringify({
@@ -296,10 +288,10 @@ export function computeDateRange(dateArrivee: string): {
 // --- CV Cloture sync ---
 
 export async function syncFabricCvCloture(
-  graphqlEndpoint: string,
-  auth: FabricAuthConfig,
   onProgress?: (page: number, rowsSoFar: number) => void,
 ): Promise<{ totalRows: number; pagesProcessed: number }> {
+  const { graphqlEndpoint } = ENV.fabric;
+
   if (!graphqlEndpoint) {
     throw new WoodyError(
       "L'endpoint GraphQL Fabric doit etre configure",
@@ -307,7 +299,7 @@ export async function syncFabricCvCloture(
     );
   }
 
-  const token = await authenticateFabric(auth);
+  const token = await authenticateFabric();
   await clearFabricCvCloture();
 
   let cursor: string | null = null;
@@ -354,15 +346,13 @@ export async function syncFabricCvCloture(
 // --- Sync all Fabric data + auto-close ---
 
 export async function syncAllFabricData(
-  graphqlEndpoint: string,
-  auth: FabricAuthConfig,
   onProgress?: (step: string, detail: string) => void,
 ): Promise<{ encoursRows: number; clotureRows: number; autoClosed: number }> {
   onProgress?.("cv_encours", "Synchronisation des declarations en cours...");
-  const encours = await syncFabricData(graphqlEndpoint, auth);
+  const encours = await syncFabricData();
 
   onProgress?.("cv_cloture", "Synchronisation des clotures...");
-  const cloture = await syncFabricCvCloture(graphqlEndpoint, auth);
+  const cloture = await syncFabricCvCloture();
 
   onProgress?.("auto_close", "Cloture automatique des dossiers...");
   const autoClosed = await autoCloseDossiers();

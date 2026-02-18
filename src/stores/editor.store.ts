@@ -13,7 +13,7 @@ import {
   mapFabricToCdvSession,
   type FabricCvEncours,
 } from "@/types/fabric.types";
-import { useSettingsStore } from "@/stores/settings.store";
+import { ENV } from "@/lib/env";
 import { WoodyError } from "@/types/errors";
 
 interface EditorState {
@@ -205,13 +205,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const { session } = get();
     if (!session) return;
 
-    const { fabricGraphqlEndpoint } =
-      useSettingsStore.getState().settings;
-
-    if (!fabricGraphqlEndpoint) {
+    if (!ENV.fabric.graphqlEndpoint) {
       set({
         fabricError:
-          "L'endpoint GraphQL Fabric doit etre configure dans les parametres",
+          "L'endpoint GraphQL Fabric n'est pas configure (variable d'environnement manquante)",
       });
       return;
     }

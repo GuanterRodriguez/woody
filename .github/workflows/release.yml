@@ -47,6 +47,16 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_N8N_WEBHOOK_URL: ${{ secrets.VITE_N8N_WEBHOOK_URL }}
+          VITE_N8N_TEST_URL: ${{ secrets.VITE_N8N_TEST_URL }}
+          VITE_N8N_AUTH_TYPE: ${{ secrets.VITE_N8N_AUTH_TYPE }}
+          VITE_N8N_AUTH_VALUE: ${{ secrets.VITE_N8N_AUTH_VALUE }}
+          VITE_N8N_TIMEOUT_MINUTES: ${{ secrets.VITE_N8N_TIMEOUT_MINUTES }}
+          VITE_N8N_RETRY_COUNT: ${{ secrets.VITE_N8N_RETRY_COUNT }}
+          VITE_FABRIC_GRAPHQL_ENDPOINT: ${{ secrets.VITE_FABRIC_GRAPHQL_ENDPOINT }}
+          VITE_FABRIC_CLIENT_ID: ${{ secrets.VITE_FABRIC_CLIENT_ID }}
+          VITE_FABRIC_TENANT_ID: ${{ secrets.VITE_FABRIC_TENANT_ID }}
+          VITE_FABRIC_CLIENT_SECRET: ${{ secrets.VITE_FABRIC_CLIENT_SECRET }}
         with:
           tagName: v__VERSION__
           releaseName: "Woody v__VERSION__"

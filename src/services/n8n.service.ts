@@ -1,5 +1,5 @@
 import { WoodyError } from "@/types/errors";
-import type { N8nAuthType } from "@/stores/settings.store";
+import { ENV, type N8nAuthType } from "@/lib/env";
 import {
   N8nOcrResponseSchema,
   type N8nOcrResponse,
@@ -7,23 +7,6 @@ import {
 
 const TEST_TIMEOUT_MS = 10_000; // 10 seconds for connection test
 const RETRY_DELAY_MS = 2_000; // 2 seconds between retries
-
-// --- Config interfaces ---
-
-export interface N8nServiceConfig {
-  webhookUrl: string;
-  authType: N8nAuthType;
-  authValue: string;
-  timeoutMinutes: number;
-  retryCount: number;
-}
-
-export interface N8nTestConfig {
-  webhookUrl: string;
-  testUrl: string;
-  authType: N8nAuthType;
-  authValue: string;
-}
 
 // --- JSON extraction ---
 
@@ -95,22 +78,23 @@ async function withRetry<T>(
 // --- Main n8n OCR function ---
 
 export async function sendDossierForOcr(
-  config: N8nServiceConfig,
   sessionId: string,
   cdvBytes: Uint8Array,
   ficheBytes: Uint8Array,
   produit: string,
   client: string,
 ): Promise<N8nOcrResponse> {
-  if (!config.webhookUrl) {
+  const { webhookUrl, authType, authValue, timeoutMinutes, retryCount } = ENV.n8n;
+
+  if (!webhookUrl) {
     throw new WoodyError(
-      "L'URL du webhook n8n n'est pas configuree. Allez dans Parametres.",
+      "L'URL du webhook n8n n'est pas configuree (VITE_N8N_WEBHOOK_URL).",
       "N8N_NO_URL",
     );
   }
 
   const timeoutMs =
-    Math.max(1, Math.min(10, config.timeoutMinutes)) * 60 * 1000;
+    Math.max(1, Math.min(10, timeoutMinutes)) * 60 * 1000;
 
   async function doRequest(): Promise<N8nOcrResponse> {
     // Build multipart/form-data with binary PDFs + metadata
@@ -136,12 +120,9 @@ export async function sendDossierForOcr(
 
     try {
       // Don't set Content-Type manually - fetch sets multipart boundary automatically
-      const headers = buildAuthHeaders({
-        authType: config.authType,
-        authValue: config.authValue,
-      });
+      const headers = buildAuthHeaders({ authType, authValue });
 
-      const response = await fetch(config.webhookUrl, {
+      const response = await fetch(webhookUrl, {
         method: "POST",
         headers,
         body: formData,
@@ -163,7 +144,7 @@ export async function sendDossierForOcr(
       if (error instanceof WoodyError) throw error;
       if (error instanceof DOMException && error.name === "AbortError") {
         throw new WoodyError(
-          `Le delai d'attente n8n est depasse (${String(config.timeoutMinutes)} min)`,
+          `Le delai d'attente n8n est depasse (${String(timeoutMinutes)} min)`,
           "N8N_TIMEOUT",
         );
       }
@@ -177,15 +158,14 @@ export async function sendDossierForOcr(
     }
   }
 
-  return withRetry(doRequest, config.retryCount);
+  return withRetry(doRequest, retryCount);
 }
 
 // --- Test connection ---
 
-export async function testN8nConnection(
-  config: N8nTestConfig,
-): Promise<boolean> {
-  const url = config.testUrl || config.webhookUrl;
+export async function testN8nConnection(): Promise<boolean> {
+  const { webhookUrl, testUrl, authType, authValue } = ENV.n8n;
+  const url = testUrl || webhookUrl;
   if (!url) {
     throw new WoodyError("L'URL du webhook n8n est vide", "N8N_NO_URL");
   }
@@ -196,10 +176,7 @@ export async function testN8nConnection(
   }, TEST_TIMEOUT_MS);
 
   try {
-    const headers = buildAuthHeaders({
-      authType: config.authType,
-      authValue: config.authValue,
-    });
+    const headers = buildAuthHeaders({ authType, authValue });
 
     const response = await fetch(url, {
       method: "GET",

@@ -11,10 +11,7 @@ import {
   listCdvSessions,
   getUnmatchedFabricCvEncours,
 } from "@/services/database.service";
-import {
-  syncAllFabricData,
-  type FabricAuthConfig,
-} from "@/services/fabric.service";
+import { syncAllFabricData } from "@/services/fabric.service";
 import { WoodyError } from "@/types/errors";
 
 const DEFAULT_FILTERS: DashboardFilters = {
@@ -44,10 +41,7 @@ interface DashboardState {
   setActiveTab: (tab: DashboardTab) => void;
   setATraiterSubTab: (sub: ATraiterSubTab) => void;
   loadDashboardData: () => Promise<void>;
-  syncFabricAndReload: (
-    graphqlEndpoint: string,
-    auth: FabricAuthConfig,
-  ) => Promise<{ encoursRows: number; clotureRows: number; autoClosed: number }>;
+  syncFabricAndReload: () => Promise<{ encoursRows: number; clotureRows: number; autoClosed: number }>;
   setFilter: <K extends keyof DashboardFilters>(
     key: K,
     value: DashboardFilters[K],
@@ -135,16 +129,12 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     }
   },
 
-  syncFabricAndReload: async (graphqlEndpoint, auth) => {
+  syncFabricAndReload: async () => {
     set({ isSyncingFabric: true, syncProgress: null });
     try {
-      const result = await syncAllFabricData(
-        graphqlEndpoint,
-        auth,
-        (_step, detail) => {
-          set({ syncProgress: detail });
-        },
-      );
+      const result = await syncAllFabricData((_step, detail) => {
+        set({ syncProgress: detail });
+      });
       await get().loadDashboardData();
       return result;
     } finally {

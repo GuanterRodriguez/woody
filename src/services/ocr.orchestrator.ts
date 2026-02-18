@@ -1,11 +1,7 @@
-import { useSettingsStore } from "@/stores/settings.store";
 import { useImportStore } from "@/stores/import.store";
 import { useQueueStore } from "@/stores/queue.store";
 import { readPdfBytes } from "@/services/pdf.service";
-import {
-  sendDossierForOcr,
-  type N8nServiceConfig,
-} from "@/services/n8n.service";
+import { sendDossierForOcr } from "@/services/n8n.service";
 import {
   updateCdvSession,
   saveLignesVente,
@@ -23,30 +19,8 @@ const DELAY_BETWEEN_DOSSIERS_MS = 500;
  * Updates queue store status in real-time.
  */
 export async function processDossierOcr(sessionId: string): Promise<void> {
-  const {
-    n8nWebhookUrl,
-    n8nAuthType,
-    n8nAuthValue,
-    n8nTimeoutMinutes,
-    n8nRetryCount,
-  } = useSettingsStore.getState().settings;
   const { updateItemStatus } = useQueueStore.getState();
   const { documents } = useImportStore.getState();
-
-  const n8nConfig: N8nServiceConfig = {
-    webhookUrl: n8nWebhookUrl,
-    authType: n8nAuthType,
-    authValue: n8nAuthValue,
-    timeoutMinutes: n8nTimeoutMinutes,
-    retryCount: n8nRetryCount,
-  };
-
-  if (!n8nConfig.webhookUrl) {
-    throw new WoodyError(
-      "L'URL du webhook n8n n'est pas configuree. Allez dans Parametres.",
-      "N8N_NO_URL",
-    );
-  }
 
   const queueItem = useQueueStore
     .getState()
@@ -76,7 +50,6 @@ export async function processDossierOcr(sessionId: string): Promise<void> {
   // Single call to n8n for both OCR
   updateItemStatus(sessionId, "ocr_fiche", null, "OCR en cours (n8n)...");
   const result = await sendDossierForOcr(
-    n8nConfig,
     sessionId,
     cdvBytes,
     ficheBytes,
@@ -144,29 +117,6 @@ export async function processDossierOcr(sessionId: string): Promise<void> {
  * to ensure only 1 webhook call at a time.
  */
 export async function rerunSessionOcr(session: CdvSession): Promise<void> {
-  const {
-    n8nWebhookUrl,
-    n8nAuthType,
-    n8nAuthValue,
-    n8nTimeoutMinutes,
-    n8nRetryCount,
-  } = useSettingsStore.getState().settings;
-
-  const n8nConfig: N8nServiceConfig = {
-    webhookUrl: n8nWebhookUrl,
-    authType: n8nAuthType,
-    authValue: n8nAuthValue,
-    timeoutMinutes: n8nTimeoutMinutes,
-    retryCount: n8nRetryCount,
-  };
-
-  if (!n8nConfig.webhookUrl) {
-    throw new WoodyError(
-      "L'URL du webhook n8n n'est pas configuree. Allez dans Parametres.",
-      "N8N_NO_URL",
-    );
-  }
-
   if (!session.pdfCdvPath || !session.pdfFicheLotPath) {
     throw new WoodyError(
       "Les fichiers PDF sont manquants pour ce dossier",
@@ -182,7 +132,6 @@ export async function rerunSessionOcr(session: CdvSession): Promise<void> {
     const ficheBytes = await readPdfBytes(session.pdfFicheLotPath);
 
     const result = await sendDossierForOcr(
-      n8nConfig,
       session.id,
       cdvBytes,
       ficheBytes,

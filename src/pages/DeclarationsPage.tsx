@@ -6,6 +6,7 @@ import { useSettingsStore } from "@/stores/settings.store";
 import { useNavigationStore } from "@/stores/navigation.store";
 import { DossierFilters } from "@/components/dashboard/DossierFilters";
 import { NonTraiteTable } from "@/components/dashboard/NonTraiteTable";
+import { ENV } from "@/lib/env";
 import {
   filterFabricRows,
   getUniqueFabricClients,
@@ -52,15 +53,10 @@ export function DeclarationsPage() {
   }
 
   function handleSyncFabric() {
-    if (!settings.fabricGraphqlEndpoint) return;
-    void syncFabricAndReload(settings.fabricGraphqlEndpoint, {
-      clientId: settings.fabricClientId,
-      tenantId: settings.fabricTenantId,
-      clientSecret: settings.fabricClientSecret,
-    });
+    void syncFabricAndReload();
   }
 
-  const fabricConfigured = settings.fabricGraphqlEndpoint.length > 0;
+  const fabricConfigured = ENV.fabric.graphqlEndpoint.length > 0;
   const lastSync = settings.fabricLastSyncAt;
 
   return (
@@ -75,7 +71,7 @@ export function DeclarationsPage() {
           )}
           {!fabricConfigured && (
             <p className="text-xs text-muted-foreground">
-              Fabric non configuré — allez dans Configuration
+              Fabric non configuré — variables d'environnement manquantes
             </p>
           )}
         </div>
