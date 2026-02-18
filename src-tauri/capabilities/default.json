@@ -1,0 +1,46 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for Woody",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "sql:default",
+    "sql:allow-execute",
+    "sql:allow-select",
+    "store:default",
+    "dialog:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "fs:default",
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$HOME/**" }]
+    },
+    {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "$DOWNLOAD/**" }]
+    },
+    {
+      "identifier": "fs:allow-exists",
+      "allow": [{ "path": "$APPDATA/**" }]
+    },
+    {
+      "identifier": "fs:allow-mkdir",
+      "allow": [{ "path": "$APPDATA/**" }]
+    },
+    "core:webview:allow-create-webview-window",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://login.microsoftonline.com/**" },
+        { "url": "https://*.fabric.microsoft.com/**" },
+        { "url": "https://*.pbidedicated.windows.net/**" },
+        { "url": "https://*.datawarehouse.fabric.microsoft.com/**" },
+        { "url": "https://*.analysis.windows.net/**" }
+      ]
+    },
+    "updater:default",
+    "process:allow-restart"
+  ]
+}

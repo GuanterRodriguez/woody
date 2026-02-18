@@ -11,6 +11,8 @@ dist/
 build/
 out/
 target/
+src-tauri/target/
+src-tauri/gen/
 *.exe
 *.dmg
 *.app
@@ -22,6 +24,9 @@ target/
 *.key
 *.pem
 credentials.json
+
+# Claude Code
+.claude/
 
 # IDE
 .vscode/

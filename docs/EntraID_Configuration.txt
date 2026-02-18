@@ -1,0 +1,99 @@
+============================================================
+  CONFIGURATION APPLICATION ENTRA ID (Azure AD) POUR WOODY
+============================================================
+
+Woody utilise le flux "Client Credentials" (authentification par secret,
+sans popup ni connexion utilisateur). L'app reste connectee en permanence.
+
+
+1. INSCRIPTION DE L'APPLICATION
+-------------------------------
+- Azure Portal > Microsoft Entra ID > Inscriptions d'applications > Nouvelle inscription
+- Nom : Woody
+- Types de comptes : Comptes dans cet annuaire organisationnel uniquement
+- URI de redirection : ne rien mettre
+- Cliquer "Inscrire"
+
+>> Noter le "ID d'application (client)" et le "ID du repertoire (tenant)"
+
+
+2. SECRET CLIENT
+----------------
+- Aller dans : Certificats & secrets > Nouveau secret client
+- Description : "Woody" (ou ce que vous voulez)
+- Expiration : choisir la duree souhaitee
+
+>> COPIER IMMEDIATEMENT la "Valeur" du secret (elle ne sera plus visible apres)
+
+
+3. API AUTORISEES (PERMISSIONS D'APPLICATION)
+---------------------------------------------
+Aller dans : Autorisations d'API > Ajouter une autorisation
+
+a) Power BI Service
+   - Cliquer "API utilisees par mon organisation"
+   - Chercher "Power BI Service"
+   - Selectionner "Autorisations d'application" (PAS "deleguees")
+   - Cocher :
+       [x] Tenant.Read.All           Lire le contenu du locataire
+
+>> Cliquer "Accorder le consentement administrateur pour [votre tenant]"
+
+
+4. ACTIVER L'ACCES SERVICE PRINCIPAL DANS FABRIC
+-------------------------------------------------
+IMPORTANT : Sans cette etape, l'app ne pourra pas acceder aux donnees Fabric.
+
+- Aller dans : Fabric Admin Portal > Parametres du locataire
+- Chercher : "Les principaux de service peuvent utiliser les API Fabric"
+- Activer pour "Toute l'organisation" ou un groupe de securite specifique
+- Chercher aussi : "Les principaux de service peuvent acceder aux API en lecture seule"
+- Activer si necessaire
+
+Puis dans votre Workspace Fabric :
+- Parametres du workspace > Acces
+- Ajouter le service principal (nom de l'app) avec le role "Membre" ou "Contributeur"
+
+
+5. CONFIGURATION DANS WOODY
+----------------------------
+Dans l'application Woody > Configuration > Microsoft Fabric :
+
+- Client ID       : l'ID d'application de l'etape 1
+- Tenant ID       : l'ID du repertoire de l'etape 1
+- Secret client   : la valeur du secret de l'etape 2
+- SQL Endpoint    : le endpoint SQL de votre lakehouse/warehouse Fabric
+- Database        : le nom du workspace Fabric
+
+
+6. RESUME DES PERMISSIONS
+--------------------------
++---------------------------+----------------------------+-------------+
+| API                       | Permission                 | Type        |
++---------------------------+----------------------------+-------------+
+| Power BI Service          | Tenant.Read.All            | Application |
++---------------------------+----------------------------+-------------+
+
+Note : Ce sont des permissions d'APPLICATION (pas deleguees).
+       L'app s'authentifie avec son secret, sans interaction utilisateur.
+
+
+7. DEPANNAGE
+------------
+- "AADSTS7000215" : secret invalide
+  -> Verifier que vous avez copie la "Valeur" (pas l'ID du secret)
+
+- "AADSTS700016" : application introuvable
+  -> Verifier le Client ID et le Tenant ID
+
+- "AADSTS70011" : scope invalide
+  -> Verifier que les permissions ont ete accordees avec consentement admin
+
+- "Unauthorized" sur requete Fabric
+  -> Verifier que le service principal a acces au workspace Fabric (etape 4)
+  -> Verifier que "Les principaux de service peuvent utiliser les API Fabric"
+     est active dans les parametres admin Fabric
+
+- Token expire / erreur intermittente
+  -> Le token est renouvele automatiquement (cache avec 2min de marge)
+  -> Si le secret expire, en creer un nouveau dans Entra ID
