@@ -84,7 +84,7 @@ export async function sendDossierForOcr(
   produit: string,
   client: string,
 ): Promise<N8nOcrResponse> {
-  const { webhookUrl, authType, authValue, timeoutMinutes, retryCount } = ENV.n8n;
+  const { webhookUrl, authType, authValue, retryCount } = ENV.n8n;
 
   if (!webhookUrl) {
     throw new WoodyError(
@@ -92,9 +92,6 @@ export async function sendDossierForOcr(
       "N8N_NO_URL",
     );
   }
-
-  const timeoutMs =
-    Math.max(1, Math.min(10, timeoutMinutes)) * 60 * 1000;
 
   async function doRequest(): Promise<N8nOcrResponse> {
     // Build multipart/form-data with binary PDFs + metadata
@@ -113,11 +110,6 @@ export async function sendDossierForOcr(
       "fiche_lot.pdf",
     );
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      controller.abort();
-    }, timeoutMs);
-
     try {
       // Don't set Content-Type manually - fetch sets multipart boundary automatically
       const headers = buildAuthHeaders({ authType, authValue });
@@ -126,7 +118,6 @@ export async function sendDossierForOcr(
         method: "POST",
         headers,
         body: formData,
-        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -150,10 +141,12 @@ export async function sendDossierForOcr(
       return N8nOcrResponseSchema.parse(data);
     } catch (error) {
       if (error instanceof WoodyError) throw error;
-      if (error instanceof DOMException && error.name === "AbortError") {
+      // Network errors (e.g. "Failed to fetch") are TypeError, not parse errors
+      if (error instanceof TypeError) {
         throw new WoodyError(
-          `Le delai d'attente n8n est depasse (${String(timeoutMinutes)} min)`,
-          "N8N_TIMEOUT",
+          `Erreur reseau n8n: ${error.message}`,
+          "N8N_NETWORK_ERROR",
+          error,
         );
       }
       const detail =
@@ -163,8 +156,6 @@ export async function sendDossierForOcr(
         "N8N_PARSE_FAILED",
         error,
       );
-    } finally {
-      clearTimeout(timer);
     }
   }
 

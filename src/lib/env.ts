@@ -6,7 +6,6 @@ export const ENV = {
     testUrl: import.meta.env.VITE_N8N_TEST_URL,
     authType: (import.meta.env.VITE_N8N_AUTH_TYPE || "none") as N8nAuthType,
     authValue: import.meta.env.VITE_N8N_AUTH_VALUE,
-    timeoutMinutes: Number(import.meta.env.VITE_N8N_TIMEOUT_MINUTES || "5"),
     retryCount: Number(import.meta.env.VITE_N8N_RETRY_COUNT || "0"),
   },
   fabric: {
