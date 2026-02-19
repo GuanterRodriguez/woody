@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Woody",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "identifier": "com.grlog.woody",
   "build": {
     "frontendDist": "../dist",
@@ -18,7 +18,7 @@
   "bundle": {
     "active": true,
     "targets": ["nsis", "app", "dmg"],
-    "createUpdaterArtifacts": false,
+    "createUpdaterArtifacts": "v2Compatible",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -37,9 +37,9 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "REPLACE_WITH_YOUR_PUBLIC_KEY",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE0NjkzMzdDMDZDNTUzRUEKUldUcVU4VUdmRE5wcEx4NG5Salhnd1hGTzNZVm1Uc0lQbDFJMGQ0cXRvOUpTbFBETHRoalFxSjAK",
       "endpoints": [
-        "https://github.com/OWNER/woody/releases/latest/download/latest.json"
+        "https://github.com/GuanterRodriguez/woody/releases/latest/download/latest.json"
       ],
       "windows": {
         "installMode": "passive"

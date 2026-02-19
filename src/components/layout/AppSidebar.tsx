@@ -131,7 +131,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <div className="px-4 py-2 text-xs text-muted-foreground">
-          Woody v0.1.0
+          Woody v{APP_VERSION}
         </div>
       </SidebarFooter>
     </Sidebar>

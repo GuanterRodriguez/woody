@@ -18,6 +18,8 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
+declare const APP_VERSION: string;
+
 declare module "*.xlsx?url" {
   const url: string;
   export default url;

@@ -1,6 +1,6 @@
 [package]
 name = "woody"
-version = "0.1.1"
+version = "0.1.2"
 description = "Woody - Gestion des Comptes de Vente"
 authors = ["GRLOG"]
 edition = "2021"
