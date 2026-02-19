@@ -97,6 +97,71 @@ async fn fabric_graphql_query(
     Ok(FetchTokenResult { status, body })
 }
 
+// --- n8n webhook call (bypasses WebView fetch timeout) ---
+
+#[tauri::command]
+async fn send_n8n_webhook(
+    webhook_url: String,
+    session_id: String,
+    produit: String,
+    client_name: String,
+    cdv_pdf: Vec<u8>,
+    fiche_pdf: Vec<u8>,
+    auth_type: String,
+    auth_value: String,
+) -> Result<FetchTokenResult, String> {
+    log::info!(
+        "[n8n] POST to {} (session={}, cdv={}B, fiche={}B)",
+        webhook_url,
+        session_id,
+        cdv_pdf.len(),
+        fiche_pdf.len()
+    );
+
+    let cdv_part = reqwest::multipart::Part::bytes(cdv_pdf)
+        .file_name("cdv.pdf")
+        .mime_str("application/pdf")
+        .map_err(|e| e.to_string())?;
+    let fiche_part = reqwest::multipart::Part::bytes(fiche_pdf)
+        .file_name("fiche_lot.pdf")
+        .mime_str("application/pdf")
+        .map_err(|e| e.to_string())?;
+
+    let form = reqwest::multipart::Form::new()
+        .text("sessionId", session_id)
+        .text("produit", produit)
+        .text("client", client_name)
+        .part("cdvPdf", cdv_part)
+        .part("ficheLotPdf", fiche_part);
+
+    let client = reqwest::Client::new(); // No timeout — wait for n8n to finish
+    let mut request = client.post(&webhook_url).multipart(form);
+
+    match auth_type.as_str() {
+        "apiKey" if !auth_value.is_empty() => {
+            request = request.header("X-API-Key", &auth_value);
+        }
+        "bearer" if !auth_value.is_empty() => {
+            request = request.header("Authorization", format!("Bearer {}", auth_value));
+        }
+        _ => {}
+    }
+
+    let response = request
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {}", e))?;
+
+    let status = response.status().as_u16();
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("Read error: {}", e))?;
+
+    log::info!("[n8n] Response status={}, body_len={}", status, body.len());
+    Ok(FetchTokenResult { status, body })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -109,7 +174,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             fetch_entra_token,
             fabric_rest_get,
-            fabric_graphql_query
+            fabric_graphql_query,
+            send_n8n_webhook
         ])
         .setup(|app| {
             #[cfg(desktop)]

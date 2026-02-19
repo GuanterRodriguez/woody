@@ -1,6 +1,6 @@
 [package]
 name = "woody"
-version = "0.1.5"
+version = "0.1.6"
 description = "Woody - Gestion des Comptes de Vente"
 authors = ["GRLOG"]
 edition = "2021"
@@ -26,5 +26,5 @@ tauri-plugin-dialog = "2"
 tauri-plugin-http = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
-reqwest = "0.12"
+reqwest = { version = "0.12", features = ["multipart"] }
 tokio = { version = "1", features = ["net"] }

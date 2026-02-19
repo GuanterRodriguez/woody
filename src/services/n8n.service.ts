@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { WoodyError } from "@/types/errors";
 import { ENV, type N8nAuthType } from "@/lib/env";
 import {
@@ -94,40 +95,30 @@ export async function sendDossierForOcr(
   }
 
   async function doRequest(): Promise<N8nOcrResponse> {
-    // Build multipart/form-data with binary PDFs + metadata
-    const formData = new FormData();
-    formData.append("sessionId", sessionId);
-    formData.append("produit", produit);
-    formData.append("client", client);
-    formData.append(
-      "cdvPdf",
-      new Blob([cdvBytes.buffer as ArrayBuffer], { type: "application/pdf" }),
-      "cdv.pdf",
-    );
-    formData.append(
-      "ficheLotPdf",
-      new Blob([ficheBytes.buffer as ArrayBuffer], { type: "application/pdf" }),
-      "fiche_lot.pdf",
-    );
-
     try {
-      // Don't set Content-Type manually - fetch sets multipart boundary automatically
-      const headers = buildAuthHeaders({ authType, authValue });
+      // Use Rust command to bypass WebView fetch timeout (~120s)
+      const result = await invoke<{ status: number; body: string }>(
+        "send_n8n_webhook",
+        {
+          webhookUrl,
+          sessionId,
+          produit,
+          clientName: client,
+          cdvPdf: Array.from(cdvBytes),
+          fichePdf: Array.from(ficheBytes),
+          authType,
+          authValue: authValue || "",
+        },
+      );
 
-      const response = await fetch(webhookUrl, {
-        method: "POST",
-        headers,
-        body: formData,
-      });
-
-      if (!response.ok) {
+      if (result.status < 200 || result.status >= 300) {
         throw new WoodyError(
-          `Erreur HTTP ${String(response.status)} depuis n8n`,
+          `Erreur HTTP ${String(result.status)} depuis n8n`,
           "N8N_HTTP_ERROR",
         );
       }
 
-      const text = await response.text();
+      const text = result.body;
       console.warn("[n8n] Raw response:", text.slice(0, 500));
 
       const jsonStr = extractJsonFromText(text);
@@ -141,12 +132,11 @@ export async function sendDossierForOcr(
       return N8nOcrResponseSchema.parse(data);
     } catch (error) {
       if (error instanceof WoodyError) throw error;
-      // Network errors (e.g. "Failed to fetch") are TypeError, not parse errors
-      if (error instanceof TypeError) {
+      // invoke() rejects with a string for Rust errors
+      if (typeof error === "string") {
         throw new WoodyError(
-          `Erreur reseau n8n: ${error.message}`,
+          `Erreur reseau n8n: ${error}`,
           "N8N_NETWORK_ERROR",
-          error,
         );
       }
       const detail =
