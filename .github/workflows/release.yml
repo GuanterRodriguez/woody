@@ -62,6 +62,6 @@ jobs:
           tagName: v__VERSION__
           releaseName: "Woody v__VERSION__"
           releaseBody: "See assets to download and install this version."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
