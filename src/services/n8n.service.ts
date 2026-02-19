@@ -137,8 +137,16 @@ export async function sendDossierForOcr(
       }
 
       const text = await response.text();
+      console.warn("[n8n] Raw response:", text.slice(0, 500));
+
       const jsonStr = extractJsonFromText(text);
-      const data: unknown = JSON.parse(jsonStr);
+      let data: unknown = JSON.parse(jsonStr);
+
+      // n8n sometimes wraps responses in an array — unwrap if needed
+      if (Array.isArray(data)) {
+        data = data[0];
+      }
+
       return N8nOcrResponseSchema.parse(data);
     } catch (error) {
       if (error instanceof WoodyError) throw error;
@@ -148,8 +156,10 @@ export async function sendDossierForOcr(
           "N8N_TIMEOUT",
         );
       }
+      const detail =
+        error instanceof Error ? error.message.slice(0, 200) : String(error);
       throw new WoodyError(
-        "Erreur de parsing de la reponse n8n",
+        `Erreur de parsing de la reponse n8n: ${detail}`,
         "N8N_PARSE_FAILED",
         error,
       );

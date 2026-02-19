@@ -114,7 +114,7 @@ export function EditorToolbar({
           variant="outline"
           size="sm"
           onClick={onGenerate}
-          disabled={isSaving || isRunningOcr || statut === "brouillon" || statut === "ocr_en_cours"}
+          disabled={isSaving || statut === "brouillon" || statut === "ocr_en_cours"}
         >
           <FileSpreadsheet className="mr-1.5 h-3.5 w-3.5" />
           Generer liasse

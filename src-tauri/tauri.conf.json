@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Woody",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "identifier": "com.grlog.woody",
   "build": {
     "frontendDist": "../dist",
@@ -37,7 +37,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE0NjkzMzdDMDZDNTUzRUEKUldUcVU4VUdmRE5wcEx4NG5Salhnd1hGTzNZVm1Uc0lQbDFJMGQ0cXRvOUpTbFBETHRoalFxSjAK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJFNzZGN0NGMzJBMURCMzQKUldRMDI2RXl6L2Qydmd3U1c5ZFdadFVMVFA1VWIvcGNLenN4WXNZZ01WTmZrV0VUWmh1b1BmbmgK",
       "endpoints": [
         "https://github.com/GuanterRodriguez/woody/releases/latest/download/latest.json"
       ],
