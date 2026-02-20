@@ -162,6 +162,44 @@ async fn send_n8n_webhook(
     Ok(FetchTokenResult { status, body })
 }
 
+// --- n8n result polling (async OCR pattern via second webhook) ---
+
+#[tauri::command]
+async fn poll_n8n_result(
+    result_url: String,
+    session_id: String,
+) -> Result<FetchTokenResult, String> {
+    log::info!("[n8n] Poll result for session={} at {}", session_id, result_url);
+
+    let json_body = format!(
+        r#"{{"action":"get","sessionId":"{}"}}"#,
+        session_id.replace('"', r#"\""#)
+    );
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post(&result_url)
+        .header("Content-Type", "application/json")
+        .body(json_body)
+        .timeout(std::time::Duration::from_secs(15))
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {}", e))?;
+
+    let status = response.status().as_u16();
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("Read error: {}", e))?;
+
+    log::info!(
+        "[n8n] Poll result response status={}, body_len={}",
+        status,
+        body.len()
+    );
+    Ok(FetchTokenResult { status, body })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -175,7 +213,8 @@ pub fn run() {
             fetch_entra_token,
             fabric_rest_get,
             fabric_graphql_query,
-            send_n8n_webhook
+            send_n8n_webhook,
+            poll_n8n_result
         ])
         .setup(|app| {
             #[cfg(desktop)]

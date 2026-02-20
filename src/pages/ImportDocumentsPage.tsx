@@ -133,7 +133,7 @@ export function ImportDocumentsPage() {
       <h1 className="text-2xl font-bold">Importer des documents</h1>
 
       <PdfDropZone
-        onFilesDropped={(paths) => void handleFilesDropped(paths)}
+        onFilesDropped={handleFilesDropped}
         isImporting={isImporting}
       />
 

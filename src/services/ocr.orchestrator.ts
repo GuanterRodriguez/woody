@@ -40,21 +40,23 @@ export async function processDossierOcr(sessionId: string): Promise<void> {
   }
 
   // Update status: sending to n8n
-  updateItemStatus(sessionId, "ocr_cdv", null, "Envoi a n8n...");
   await updateCdvSession(sessionId, { statut: "ocr_en_cours" });
 
   // Read both PDFs
   const cdvBytes = await readPdfBytes(cdvDoc.filePath);
   const ficheBytes = await readPdfBytes(ficheDoc.filePath);
 
-  // Single call to n8n for both OCR
-  updateItemStatus(sessionId, "ocr_fiche", null, "OCR en cours (n8n)...");
+  // Single call to n8n for both OCR (async webhook + polling)
+  updateItemStatus(sessionId, "ocr_fiche", null, "Envoi a n8n...");
   const result = await sendDossierForOcr(
     sessionId,
     cdvBytes,
     ficheBytes,
     queueItem.produit,
     queueItem.client,
+    (progressMessage: string) => {
+      updateItemStatus(sessionId, "ocr_fiche", null, progressMessage);
+    },
   );
 
   // Save CDV results
