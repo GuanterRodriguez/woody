@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Woody",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "identifier": "com.grlog.woody",
   "build": {
     "frontendDist": "../dist",
