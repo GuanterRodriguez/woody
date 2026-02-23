@@ -14,6 +14,7 @@ import { v4 as uuidv4 } from "uuid";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ClientCombobox } from "./ClientCombobox";
 import { createDossier } from "@/services/database.service";
 import { readPdfBytes } from "@/services/pdf.service";
 import { useImportStore } from "@/stores/import.store";
@@ -179,13 +180,11 @@ export function DossierCreationWizard({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="client">Client *</Label>
-              <Input
-                id="client"
-                placeholder="Ex: Client ABC"
+              <Label>Client *</Label>
+              <ClientCombobox
                 value={currentPair.client}
-                onChange={(e) => {
-                  onUpdatePair(currentIndex, "client", e.target.value);
+                onChange={(v) => {
+                  onUpdatePair(currentIndex, "client", v);
                 }}
               />
             </div>

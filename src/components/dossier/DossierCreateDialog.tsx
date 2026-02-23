@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,27 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { cn } from "@/lib/utils";
 import { useImportStore } from "@/stores/import.store";
-import {
-  createDossier,
-  getFabricCvEncoursCount,
-} from "@/services/database.service";
-import { getClientList } from "@/services/fabric.service";
+import { createDossier } from "@/services/database.service";
 import { WoodyError } from "@/types/errors";
+import { ClientCombobox } from "./ClientCombobox";
 
 interface DossierCreateDialogProps {
   open: boolean;
@@ -51,12 +33,6 @@ export function DossierCreateDialog({
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fabric client list state
-  const [clientListOpen, setClientListOpen] = useState(false);
-  const [fabricClients, setFabricClients] = useState<string[]>([]);
-  const [isLoadingClients, setIsLoadingClients] = useState(false);
-  const [fabricAvailable, setFabricAvailable] = useState(false);
-
   const { getAvailableDocuments, setDocumentCdvSessionId } =
     useImportStore();
   const availableCdvDocs = getAvailableDocuments("cdv");
@@ -67,33 +43,6 @@ export function DossierCreateDialog({
     client.trim() !== "" &&
     selectedCdvDocId !== "" &&
     selectedFicheDocId !== "";
-
-  // Load Fabric clients from local SQLite cache
-  const loadFabricClients = useCallback(async () => {
-    try {
-      const count = await getFabricCvEncoursCount();
-      if (count === 0) {
-        setFabricAvailable(false);
-        return;
-      }
-
-      setFabricAvailable(true);
-      setIsLoadingClients(true);
-      const clients = await getClientList();
-      setFabricClients(clients);
-    } catch {
-      // Silently fail - user can still type manually
-      setFabricAvailable(false);
-    } finally {
-      setIsLoadingClients(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (open) {
-      void loadFabricClients();
-    }
-  }, [open, loadFabricClients]);
 
   function resetForm() {
     setProduit("");
@@ -184,63 +133,7 @@ export function DossierCreateDialog({
             </div>
             <div className="space-y-2">
               <Label>Client *</Label>
-              {fabricAvailable && fabricClients.length > 0 ? (
-                <Popover open={clientListOpen} onOpenChange={setClientListOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={clientListOpen}
-                      className="w-full justify-between font-normal"
-                    >
-                      {client || "Selectionner un client..."}
-                      {isLoadingClients ? (
-                        <Loader2 className="ml-2 h-4 w-4 shrink-0 animate-spin" />
-                      ) : (
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <Command>
-                      <CommandInput placeholder="Rechercher un client..." />
-                      <CommandList>
-                        <CommandEmpty>Aucun client trouve.</CommandEmpty>
-                        <CommandGroup>
-                          {fabricClients.map((c) => (
-                            <CommandItem
-                              key={c}
-                              value={c}
-                              onSelect={(value) => {
-                                setClient(value);
-                                setClientListOpen(false);
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  client === c
-                                    ? "opacity-100"
-                                    : "opacity-0",
-                                )}
-                              />
-                              {c}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              ) : (
-                <Input
-                  value={client}
-                  onChange={(e) => {
-                    setClient(e.target.value);
-                  }}
-                  placeholder="Ex: Client A..."
-                />
-              )}
+              <ClientCombobox value={client} onChange={setClient} />
             </div>
           </div>
 

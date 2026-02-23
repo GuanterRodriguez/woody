@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "n8n-mcp": {
+      "command": "npx",
+      "args": ["-y", "n8n-mcp"],
+      "env": {
+        "N8N_API_URL": "https://guanter.app.n8n.cloud/api/v1",
+        "N8N_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyZDJiM2I1Ny1hZGMzLTQ1ODgtOGNiNy0wYjFlNjY0ZmFkZWEiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzcxODYyNDE3fQ.hWb0BbmhX5ob6SXo0NjVIsEgasdwuCGV6v0GOdHknnQ"
+      }
+    }
+  }
+}

@@ -4,13 +4,13 @@ import { ENV, type N8nAuthType } from "@/lib/env";
 import {
   N8nOcrResponseSchema,
   N8nWebhookAcceptedSchema,
-  N8nPollProcessingSchema,
   type N8nOcrResponse,
 } from "@/types/n8n.types";
 
 const TEST_TIMEOUT_MS = 10_000;
 const RETRY_DELAY_MS = 2_000;
-const POLL_INTERVAL_MS = 5_000;
+const INITIAL_POLL_DELAY_MS = 120_000; // 2 min before first poll
+const POLL_INTERVAL_MS = 30_000; // then every 30s
 
 // --- JSON extraction ---
 
@@ -64,7 +64,7 @@ async function withRetry<T>(
       lastError = error;
       if (
         error instanceof WoodyError &&
-        (error.code === "N8N_NO_URL" || error.code === "N8N_NO_RESULT_URL")
+        (error.code === "N8N_NO_URL" || error.code === "N8N_NO_API")
       ) {
         throw error;
       }
@@ -78,7 +78,7 @@ async function withRetry<T>(
   throw lastError;
 }
 
-// --- Step 1: Submit to webhook, get "accepted" ---
+// --- Step 1: Submit to webhook, get executionId ---
 
 async function submitDossierForOcr(
   sessionId: string,
@@ -86,7 +86,7 @@ async function submitDossierForOcr(
   ficheBytes: Uint8Array,
   produit: string,
   client: string,
-): Promise<void> {
+): Promise<string> {
   const { webhookUrl, authType, authValue } = ENV.n8n;
 
   if (!webhookUrl) {
@@ -119,7 +119,7 @@ async function submitDossierForOcr(
     }
 
     const text = result.body;
-    console.info("[n8n] Webhook immediate response:", text.slice(0, 300));
+    console.info("[n8n] Webhook response:", text.slice(0, 300));
 
     const jsonStr = extractJsonFromText(text);
     let data: unknown = JSON.parse(jsonStr);
@@ -127,7 +127,8 @@ async function submitDossierForOcr(
       data = data[0];
     }
 
-    N8nWebhookAcceptedSchema.parse(data);
+    const accepted = N8nWebhookAcceptedSchema.parse(data);
+    return accepted.executionId;
   } catch (error) {
     if (error instanceof WoodyError) throw error;
     if (typeof error === "string") {
@@ -139,30 +140,45 @@ async function submitDossierForOcr(
     const detail =
       error instanceof Error ? error.message.slice(0, 200) : String(error);
     throw new WoodyError(
-      `Reponse webhook inattendue (attendu: { status: "accepted" }): ${detail}`,
+      `Reponse webhook inattendue (attendu: { status: "accepted", executionId }): ${detail}`,
       "N8N_PARSE_FAILED",
       error,
     );
   }
 }
 
-// --- Step 2: Poll results webhook until OCR data is ready ---
+// --- Step 2: Poll n8n REST API for execution result (0 n8n executions) ---
 
-async function pollOcrResult(
-  sessionId: string,
+async function pollExecutionResult(
+  executionId: string,
   onProgress?: (elapsedSeconds: number) => void,
 ): Promise<N8nOcrResponse> {
-  const { resultUrl, timeoutMinutes } = ENV.n8n;
+  const { apiUrl, apiKey, timeoutMinutes } = ENV.n8n;
 
-  if (!resultUrl) {
+  if (!apiUrl || !apiKey) {
     throw new WoodyError(
-      "L'URL du webhook resultats n8n n'est pas configuree (VITE_N8N_RESULT_URL).",
-      "N8N_NO_RESULT_URL",
+      "L'API n8n n'est pas configuree (VITE_N8N_API_URL / VITE_N8N_API_KEY).",
+      "N8N_NO_API",
     );
   }
 
   const maxPollMs = timeoutMinutes * 60 * 1000;
   const startTime = Date.now();
+
+  // Wait before first poll (OCR takes 2-5 min, no point polling earlier)
+  await new Promise<void>((resolve) => {
+    const waitUntil = startTime + INITIAL_POLL_DELAY_MS;
+    const tick = () => {
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      onProgress?.(elapsed);
+      if (Date.now() >= waitUntil) {
+        resolve();
+      } else {
+        setTimeout(tick, 1000);
+      }
+    };
+    tick();
+  });
 
   while (Date.now() - startTime < maxPollMs) {
     const elapsedSeconds = Math.round((Date.now() - startTime) / 1000);
@@ -171,12 +187,11 @@ async function pollOcrResult(
     let result;
     try {
       result = await invoke<{ status: number; body: string }>(
-        "poll_n8n_result",
-        { resultUrl, sessionId },
+        "get_n8n_execution",
+        { apiUrl, apiKey, executionId },
       );
     } catch (error) {
-      // Network error during polling — wait and retry
-      console.warn("[n8n] Poll network error, retrying...", error);
+      console.warn("[n8n] REST API poll error, retrying...", error);
       await new Promise<void>((resolve) => {
         setTimeout(resolve, POLL_INTERVAL_MS);
       });
@@ -185,47 +200,73 @@ async function pollOcrResult(
 
     if (result.status < 200 || result.status >= 300) {
       throw new WoodyError(
-        `Erreur HTTP ${String(result.status)} en interrogeant les resultats n8n`,
+        `Erreur HTTP ${String(result.status)} en interrogeant l'API n8n`,
         "N8N_POLL_HTTP_ERROR",
       );
     }
 
-    let data: unknown;
+    let execution: { status: string; data?: { resultData?: { runData?: Record<string, unknown[]> } } };
     try {
-      const jsonStr = extractJsonFromText(result.body);
-      data = JSON.parse(jsonStr);
-      if (Array.isArray(data)) {
-        data = data[0];
-      }
+      execution = JSON.parse(result.body) as typeof execution;
     } catch (error) {
       throw new WoodyError(
-        "Reponse invalide du webhook resultats n8n",
+        "Reponse invalide de l'API REST n8n",
         "N8N_POLL_PARSE_FAILED",
         error,
       );
     }
 
-    // Check if still processing
-    const processingResult = N8nPollProcessingSchema.safeParse(data);
-    if (processingResult.success) {
+    if (execution.status === "error") {
+      throw new WoodyError(
+        "L'execution OCR n8n a echoue",
+        "N8N_EXECUTION_ERROR",
+      );
+    }
+
+    if (execution.status === "running" || execution.status === "waiting" || execution.status === "new") {
       await new Promise<void>((resolve) => {
         setTimeout(resolve, POLL_INTERVAL_MS);
       });
       continue;
     }
 
-    // Try to parse as OCR result
-    try {
-      return N8nOcrResponseSchema.parse(data);
-    } catch (error) {
-      const detail =
-        error instanceof Error ? error.message.slice(0, 200) : String(error);
-      throw new WoodyError(
-        `Erreur de parsing de la reponse OCR n8n: ${detail}`,
-        "N8N_PARSE_FAILED",
-        error,
-      );
+    if (execution.status === "success") {
+      // Extract Build Result output from execution data
+      try {
+        const runData = execution.data?.resultData?.runData;
+        if (!runData) {
+          throw new Error("Pas de runData dans l'execution");
+        }
+
+        const buildResultRuns = runData["Build Result"] as
+          | { data?: { main?: Array<Array<{ json: unknown }>> } }[]
+          | undefined;
+        if (!buildResultRuns?.[0]) {
+          throw new Error("Pas de donnees pour le node 'Build Result'");
+        }
+
+        const outputItems = buildResultRuns[0].data?.main?.[0];
+        if (!outputItems?.[0]) {
+          throw new Error("Pas d'items en sortie de 'Build Result'");
+        }
+
+        return N8nOcrResponseSchema.parse(outputItems[0].json);
+      } catch (error) {
+        if (error instanceof WoodyError) throw error;
+        const detail =
+          error instanceof Error ? error.message.slice(0, 200) : String(error);
+        throw new WoodyError(
+          `Erreur de parsing de la reponse OCR n8n: ${detail}`,
+          "N8N_PARSE_FAILED",
+          error,
+        );
+      }
     }
+
+    // Unknown status — treat as still running
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, POLL_INTERVAL_MS);
+    });
   }
 
   throw new WoodyError(
@@ -247,15 +288,17 @@ export async function sendDossierForOcr(
   const { retryCount } = ENV.n8n;
 
   async function doRequest(): Promise<N8nOcrResponse> {
-    // Step 1: Submit and get "accepted"
+    // Step 1: Submit and get executionId
     onProgress?.("Envoi a n8n...");
-    await submitDossierForOcr(sessionId, cdvBytes, ficheBytes, produit, client);
+    const executionId = await submitDossierForOcr(
+      sessionId, cdvBytes, ficheBytes, produit, client,
+    );
 
-    console.info(`[n8n] OCR submitted for session ${sessionId}, polling...`);
+    console.info(`[n8n] OCR submitted for session ${sessionId}, executionId=${executionId}`);
     onProgress?.("OCR en cours...");
 
-    // Step 2: Poll results webhook until completion
-    return pollOcrResult(sessionId, (elapsedSeconds) => {
+    // Step 2: Poll REST API for execution result (0 n8n executions)
+    return pollExecutionResult(executionId, (elapsedSeconds) => {
       const minutes = Math.floor(elapsedSeconds / 60);
       const seconds = elapsedSeconds % 60;
       const timeStr =

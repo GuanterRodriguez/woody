@@ -46,17 +46,14 @@ export async function processDossierOcr(sessionId: string): Promise<void> {
   const cdvBytes = await readPdfBytes(cdvDoc.filePath);
   const ficheBytes = await readPdfBytes(ficheDoc.filePath);
 
-  // Single call to n8n for both OCR (async webhook + polling)
-  updateItemStatus(sessionId, "ocr_fiche", null, "Envoi a n8n...");
+  // Submit to n8n + poll REST API for result (0 extra n8n executions)
   const result = await sendDossierForOcr(
     sessionId,
     cdvBytes,
     ficheBytes,
     queueItem.produit,
     queueItem.client,
-    (progressMessage: string) => {
-      updateItemStatus(sessionId, "ocr_fiche", null, progressMessage);
-    },
+    (msg) => updateItemStatus(sessionId, "ocr_fiche", null, msg),
   );
 
   // Save CDV results
@@ -140,6 +137,7 @@ export async function rerunSessionOcr(session: CdvSession): Promise<void> {
       session.produit,
       session.client,
     );
+
 
     await updateCdvSession(session.id, {
       camion: result.cdv.camion,

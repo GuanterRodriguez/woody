@@ -8,18 +8,13 @@ export interface N8nOcrRequestMeta {
   client: string;
 }
 
-// --- Immediate webhook response (async mode) ---
+// --- Webhook "accepted" response (includes executionId for REST API polling) ---
 export const N8nWebhookAcceptedSchema = z.object({
   status: z.literal("accepted"),
-});
-export type N8nWebhookAccepted = z.infer<typeof N8nWebhookAcceptedSchema>;
-
-// --- Polling response: either "processing" or the final OCR result ---
-export const N8nPollProcessingSchema = z.object({
-  status: z.literal("processing"),
+  executionId: z.string(),
 });
 
-// --- Final OCR response ---
+// --- OCR response (extracted from n8n execution data) ---
 export const N8nOcrResponseSchema = z.object({
   sessionId: z.string(),
   cdv: OcrCdvSchema,

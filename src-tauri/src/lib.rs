@@ -134,7 +134,10 @@ async fn send_n8n_webhook(
         .part("cdvPdf", cdv_part)
         .part("ficheLotPdf", fiche_part);
 
-    let client = reqwest::Client::new(); // No timeout — wait for n8n to finish
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30)) // Webhook responds "accepted" in <1s
+        .build()
+        .map_err(|e| format!("Client build error: {}", e))?;
     let mut request = client.post(&webhook_url).multipart(form);
 
     match auth_type.as_str() {
@@ -162,29 +165,25 @@ async fn send_n8n_webhook(
     Ok(FetchTokenResult { status, body })
 }
 
-// --- n8n result polling (async OCR pattern via second webhook) ---
+// --- n8n REST API: get execution status (0 workflow executions) ---
 
 #[tauri::command]
-async fn poll_n8n_result(
-    result_url: String,
-    session_id: String,
+async fn get_n8n_execution(
+    api_url: String,
+    api_key: String,
+    execution_id: String,
 ) -> Result<FetchTokenResult, String> {
-    log::info!("[n8n] Poll result for session={} at {}", session_id, result_url);
-
-    let json_body = format!(
-        r#"{{"action":"get","sessionId":"{}"}}"#,
-        session_id.replace('"', r#"\""#)
-    );
+    let url = format!("{}/executions/{}?includeData=true", api_url.trim_end_matches('/'), execution_id);
+    log::info!("[n8n API] GET {}", url);
 
     let client = reqwest::Client::new();
     let response = client
-        .post(&result_url)
-        .header("Content-Type", "application/json")
-        .body(json_body)
+        .get(&url)
+        .header("X-N8N-API-KEY", &api_key)
         .timeout(std::time::Duration::from_secs(15))
         .send()
         .await
-        .map_err(|e| format!("Network error: {}", e))?;
+        .map_err(|e| format!("HTTP error: {}", e))?;
 
     let status = response.status().as_u16();
     let body = response
@@ -192,11 +191,7 @@ async fn poll_n8n_result(
         .await
         .map_err(|e| format!("Read error: {}", e))?;
 
-    log::info!(
-        "[n8n] Poll result response status={}, body_len={}",
-        status,
-        body.len()
-    );
+    log::info!("[n8n API] Response status={}, body_len={}", status, body.len());
     Ok(FetchTokenResult { status, body })
 }
 
@@ -214,7 +209,7 @@ pub fn run() {
             fabric_rest_get,
             fabric_graphql_query,
             send_n8n_webhook,
-            poll_n8n_result
+            get_n8n_execution
         ])
         .setup(|app| {
             #[cfg(desktop)]
