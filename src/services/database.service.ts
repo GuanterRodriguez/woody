@@ -7,6 +7,7 @@ import type {
   DocumentGenere,
   LigneVente,
 } from "@/types/cdv.types";
+import type { ImportedDocument } from "@/types/import.types";
 import {
   mapDbRowToFabricCvEncours,
   type FabricCvEncours,
@@ -132,6 +133,19 @@ export async function initDatabase(): Promise<void> {
       last_seen_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       UNIQUE(entity_type, entity_id)
+    )
+  `);
+
+  await database.execute(`
+    CREATE TABLE IF NOT EXISTS imported_documents (
+      id TEXT PRIMARY KEY,
+      file_name TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      original_path TEXT NOT NULL,
+      page_count INTEGER NOT NULL DEFAULT 1,
+      type TEXT,
+      cdv_session_id TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
 
@@ -812,6 +826,136 @@ export async function autoCloseDossiers(): Promise<number> {
     throw new WoodyError(
       "Impossible de cloturer automatiquement les dossiers",
       "DB_AUTO_CLOSE_FAILED",
+      error,
+    );
+  }
+}
+
+// --- ImportedDocuments CRUD ---
+
+function mapRowToImportedDocument(
+  row: Record<string, unknown>,
+): ImportedDocument {
+  return {
+    id: row["id"] as string,
+    fileName: row["file_name"] as string,
+    filePath: row["file_path"] as string,
+    originalPath: row["original_path"] as string,
+    pageCount: row["page_count"] as number,
+    type: (row["type"] as ImportedDocument["type"]) ?? null,
+    cdvSessionId: (row["cdv_session_id"] as string) ?? null,
+  };
+}
+
+export async function saveImportedDocument(
+  doc: ImportedDocument,
+): Promise<void> {
+  try {
+    const database = await getDatabase();
+    await database.execute(
+      `INSERT OR REPLACE INTO imported_documents (id, file_name, file_path, original_path, page_count, type, cdv_session_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        doc.id,
+        doc.fileName,
+        doc.filePath,
+        doc.originalPath,
+        doc.pageCount,
+        doc.type,
+        doc.cdvSessionId,
+      ],
+    );
+  } catch (error) {
+    throw new WoodyError(
+      "Impossible de sauvegarder le document importe",
+      "DB_SAVE_IMPORTED_DOC_FAILED",
+      error,
+    );
+  }
+}
+
+export async function listImportedDocuments(): Promise<ImportedDocument[]> {
+  try {
+    const database = await getDatabase();
+    const rows = await database.select<Record<string, unknown>[]>(
+      "SELECT * FROM imported_documents ORDER BY created_at DESC",
+    );
+    return rows.map(mapRowToImportedDocument);
+  } catch (error) {
+    throw new WoodyError(
+      "Impossible de lister les documents importes",
+      "DB_LIST_IMPORTED_DOCS_FAILED",
+      error,
+    );
+  }
+}
+
+export async function updateImportedDocumentType(
+  id: string,
+  type: "cdv" | "fiche_lot" | null,
+): Promise<void> {
+  try {
+    const database = await getDatabase();
+    await database.execute(
+      "UPDATE imported_documents SET type = $1 WHERE id = $2",
+      [type, id],
+    );
+  } catch (error) {
+    throw new WoodyError(
+      "Impossible de mettre a jour le type du document",
+      "DB_UPDATE_IMPORTED_DOC_FAILED",
+      error,
+    );
+  }
+}
+
+export async function updateImportedDocumentSessionId(
+  id: string,
+  sessionId: string | null,
+): Promise<void> {
+  try {
+    const database = await getDatabase();
+    await database.execute(
+      "UPDATE imported_documents SET cdv_session_id = $1 WHERE id = $2",
+      [sessionId, id],
+    );
+  } catch (error) {
+    throw new WoodyError(
+      "Impossible de mettre a jour le document importe",
+      "DB_UPDATE_IMPORTED_DOC_FAILED",
+      error,
+    );
+  }
+}
+
+export async function deleteImportedDocument(id: string): Promise<void> {
+  try {
+    const database = await getDatabase();
+    await database.execute("DELETE FROM imported_documents WHERE id = $1", [
+      id,
+    ]);
+  } catch (error) {
+    throw new WoodyError(
+      "Impossible de supprimer le document importe",
+      "DB_DELETE_IMPORTED_DOC_FAILED",
+      error,
+    );
+  }
+}
+
+export async function deleteImportedDocumentsBySessionId(
+  sessionId: string,
+): Promise<void> {
+  try {
+    const database = await getDatabase();
+    await database.execute(
+      "DELETE FROM imported_documents WHERE cdv_session_id = $1",
+      [sessionId],
+    );
+  } catch (error) {
+    throw new WoodyError(
+      "Impossible de purger les documents importes du dossier",
+      "DB_PURGE_IMPORTED_DOCS_FAILED",
       error,
     );
   }

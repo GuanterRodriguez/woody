@@ -3,6 +3,13 @@ import type {
   ImportedDocument,
   ImportViewMode,
 } from "@/types/import.types";
+import {
+  saveImportedDocument,
+  listImportedDocuments,
+  updateImportedDocumentType,
+  updateImportedDocumentSessionId,
+  deleteImportedDocument,
+} from "@/services/database.service";
 
 interface ImportState {
   documents: ImportedDocument[];
@@ -14,7 +21,7 @@ interface ImportState {
   isImporting: boolean;
   isSplitting: boolean;
 
-
+  loadPersistedDocuments: () => Promise<void>;
   addDocument: (doc: ImportedDocument) => void;
   removeDocument: (id: string) => void;
   setActiveDocument: (id: string | null) => void;
@@ -42,9 +49,14 @@ export const useImportStore = create<ImportState>((set, get) => ({
   isImporting: false,
   isSplitting: false,
 
+  loadPersistedDocuments: async () => {
+    const docs = await listImportedDocuments();
+    set({ documents: docs });
+  },
 
   addDocument: (doc) => {
     set((state) => ({ documents: [...state.documents, doc] }));
+    saveImportedDocument(doc).catch(console.error);
   },
 
   removeDocument: (id) => {
@@ -53,6 +65,7 @@ export const useImportStore = create<ImportState>((set, get) => ({
       activeDocumentId:
         state.activeDocumentId === id ? null : state.activeDocumentId,
     }));
+    deleteImportedDocument(id).catch(console.error);
   },
 
   setActiveDocument: (id) => {
@@ -106,6 +119,7 @@ export const useImportStore = create<ImportState>((set, get) => ({
         d.id === id ? { ...d, type } : d,
       ),
     }));
+    updateImportedDocumentType(id, type).catch(console.error);
   },
 
   setDocumentCdvSessionId: (id, sessionId) => {
@@ -114,6 +128,7 @@ export const useImportStore = create<ImportState>((set, get) => ({
         d.id === id ? { ...d, cdvSessionId: sessionId } : d,
       ),
     }));
+    updateImportedDocumentSessionId(id, sessionId).catch(console.error);
   },
 
   clearDocumentCdvSessionId: (id) => {
@@ -122,6 +137,7 @@ export const useImportStore = create<ImportState>((set, get) => ({
         d.id === id ? { ...d, cdvSessionId: null } : d,
       ),
     }));
+    updateImportedDocumentSessionId(id, null).catch(console.error);
   },
 
   getAvailableDocuments: (type?) => {
@@ -130,6 +146,4 @@ export const useImportStore = create<ImportState>((set, get) => ({
       (d) => d.cdvSessionId === null && (type ? d.type === type : true),
     );
   },
-
-
 }));

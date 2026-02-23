@@ -32,6 +32,7 @@ import { readPdfBytes } from "@/services/pdf.service";
 import {
   saveDocumentGenere,
   updateCdvSession,
+  deleteImportedDocumentsBySessionId,
 } from "@/services/database.service";
 import { WoodyError } from "@/types/errors";
 
@@ -219,6 +220,7 @@ export function GenerationDialog({
       // Record in database and update status
       await saveDocumentGenere(session.id, "calcul", savedPath);
       await updateCdvSession(session.id, { statut: "genere" });
+      await deleteImportedDocumentsBySessionId(session.id);
 
       setIsMerging(false);
       onGenerated(savedPath);
@@ -257,6 +259,7 @@ export function GenerationDialog({
 
       await saveDocumentGenere(session.id, "calcul", savedPath);
       await updateCdvSession(session.id, { statut: "genere" });
+      await deleteImportedDocumentsBySessionId(session.id);
 
       setIsZipping(false);
       onGenerated(savedPath);

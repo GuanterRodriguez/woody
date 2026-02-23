@@ -3,6 +3,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { router } from "./routes";
 import { initDatabase } from "@/services/database.service";
 import { useSettingsStore } from "@/stores/settings.store";
+import { useImportStore } from "@/stores/import.store";
 import {
   checkForUpdate,
   type UpdateCheckResult,
@@ -19,6 +20,7 @@ export function App() {
     try {
       await initDatabase();
       await loadSettings();
+      await useImportStore.getState().loadPersistedDocuments();
       setIsReady(true);
 
       // Check for updates after app is ready (non-blocking)
