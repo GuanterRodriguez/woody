@@ -311,12 +311,12 @@ export async function syncFabricCvCloture(
     page++;
     const afterClause = cursor ? `, after: "${cursor}"` : "";
     const graphqlQuery = JSON.stringify({
-      query: `{ cv_cloture(first: ${String(GRAPHQL_PAGE_SIZE)}${afterClause}) { items { DOSSIER REFINTERNE } hasNextPage endCursor } }`,
+      query: `{ cv_cloturs(first: ${String(GRAPHQL_PAGE_SIZE)}${afterClause}) { items { DOSSIER REFINTERNE } hasNextPage endCursor } }`,
     });
 
     const raw = await executeGraphqlQuery(graphqlEndpoint, token, graphqlQuery);
     const parsed = FabricCvClotureGraphqlResponseSchema.parse(raw);
-    const items = parsed.data.cv_cloture.items;
+    const items = parsed.data.cv_cloturs.items;
 
     if (items.length > 0) {
       await insertFabricCvClotureBatch(
@@ -330,8 +330,8 @@ export async function syncFabricCvCloture(
     totalRows += items.length;
     onProgress?.(page, totalRows);
 
-    const hasNext = parsed.data.cv_cloture.hasNextPage ?? false;
-    const nextCursor = parsed.data.cv_cloture.endCursor ?? null;
+    const hasNext = parsed.data.cv_cloturs.hasNextPage ?? false;
+    const nextCursor = parsed.data.cv_cloturs.endCursor ?? null;
 
     if (!hasNext || !nextCursor) {
       break;

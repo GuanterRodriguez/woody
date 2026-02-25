@@ -120,7 +120,7 @@ export type FabricCvCloture = z.infer<typeof FabricCvClotureSchema>;
 
 export const FabricCvClotureGraphqlResponseSchema = z.object({
   data: z.object({
-    cv_cloture: z.object({
+    cv_cloturs: z.object({
       items: z.array(FabricCvClotureSchema),
       hasNextPage: z.boolean().optional(),
       endCursor: z.string().nullable().optional(),
