@@ -816,9 +816,19 @@ export async function autoCloseDossiers(): Promise<number> {
       UPDATE cdv_sessions
       SET statut = 'cloture', updated_at = datetime('now')
       WHERE statut = 'genere'
-      AND dossier IN (
-        SELECT refinterne FROM fabric_cv_cloture
-        WHERE refinterne IS NOT NULL AND refinterne <> ''
+      AND (
+        dossier IN (
+          SELECT refinterne FROM fabric_cv_cloture
+          WHERE refinterne IS NOT NULL AND refinterne <> ''
+        )
+        OR dossier IN (
+          SELECT dossier FROM fabric_cv_cloture
+          WHERE dossier IS NOT NULL AND dossier <> ''
+        )
+        OR num_declaration IN (
+          SELECT dossier FROM fabric_cv_cloture
+          WHERE dossier IS NOT NULL AND dossier <> ''
+        )
       )
     `);
     return result.rowsAffected;

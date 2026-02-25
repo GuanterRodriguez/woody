@@ -172,11 +172,11 @@ export function buildFileName(session: CdvSession): string {
       .replace(/\s+/g, "_")
       .trim();
 
+  const dossier = sanitize(session.dossier || "Dossier");
   const client = sanitize(session.client || "Client");
   const camion = sanitize(session.camion || "Camion");
-  const date = session.dateArrivee || (new Date().toISOString().split("T")[0] ?? "");
 
-  return [client, camion, date].join("_") + ".xlsx";
+  return [dossier, client, camion].join("_") + ".xlsx";
 }
 
 // --- ZIP packaging ---

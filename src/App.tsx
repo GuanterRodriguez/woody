@@ -9,12 +9,16 @@ import {
   type UpdateCheckResult,
 } from "@/services/updater.service";
 import { UpdateDialog } from "@/components/UpdateDialog";
+import { useFabricSyncScheduler } from "@/hooks/useFabricSyncScheduler";
 
 export function App() {
   const [isReady, setIsReady] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResult | null>(null);
   const loadSettings = useSettingsStore((state) => state.loadSettings);
+
+  // Background Fabric sync every 5 minutes (only after app init)
+  useFabricSyncScheduler(isReady);
 
   const initApp = useCallback(async () => {
     try {

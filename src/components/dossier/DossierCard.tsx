@@ -91,8 +91,16 @@ export function DossierCard({
       <div className="flex items-start justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
+            {dossier.dossier ? (
+              <span className="font-semibold text-primary">{dossier.dossier}</span>
+            ) : null}
+            {dossier.dossier && (dossier.produit || dossier.client) ? (
+              <span className="text-muted-foreground">-</span>
+            ) : null}
             <span className="font-medium">{dossier.produit}</span>
-            <span className="text-muted-foreground">-</span>
+            {dossier.produit && dossier.client ? (
+              <span className="text-muted-foreground">-</span>
+            ) : null}
             <span className="text-muted-foreground">{dossier.client}</span>
           </div>
           <div className="flex items-center gap-4 text-xs text-muted-foreground">
