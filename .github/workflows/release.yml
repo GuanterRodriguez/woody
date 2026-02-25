@@ -56,6 +56,8 @@ jobs:
           VITE_N8N_RETRY_COUNT: ${{ secrets.VITE_N8N_RETRY_COUNT }}
           VITE_N8N_TIMEOUT_MINUTES: ${{ secrets.VITE_N8N_TIMEOUT_MINUTES }}
           VITE_N8N_RESULT_URL: ${{ secrets.VITE_N8N_RESULT_URL }}
+          VITE_N8N_API_URL: ${{ secrets.VITE_N8N_API_URL }}
+          VITE_N8N_API_KEY: ${{ secrets.VITE_N8N_API_KEY }}
           VITE_FABRIC_GRAPHQL_ENDPOINT: ${{ secrets.VITE_FABRIC_GRAPHQL_ENDPOINT }}
           VITE_FABRIC_CLIENT_ID: ${{ secrets.VITE_FABRIC_CLIENT_ID }}
           VITE_FABRIC_TENANT_ID: ${{ secrets.VITE_FABRIC_TENANT_ID }}
